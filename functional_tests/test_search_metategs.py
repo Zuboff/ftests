@@ -1,15 +1,13 @@
 # -*- encoding: utf-8 -*-
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
-import unittest, time, csv
+import unittest, time, csv, socket
 import urllib.request
 
 #TODO - перейти к следующе странице, если сервер не отвечает
-#import socket
-#timeout = 10
-#socket.setdefaulttimeout(timeout)
 
-TIMEOUT = 7
+TIMEOUT_RESPONSE_TIME = 10 # ограничение на время отклика сервера
+TIMEOUT_LOAD_PAGE = 6  # ограничение на время загрузки страницы, в сек
 HOST = 'http://avtobazar.ua'
 #HOST = 'http://old.avtobazar.ua:8000'
 URL = 'https://docs.google.com/spreadsheet/ccc?key=1XIlpiHQqKA_hRAdWporzDapY2TYKJZZVp-duOnpmbx8&output=csv'
@@ -24,30 +22,29 @@ the_page = the_page.decode('utf-8').splitlines()
 t_start = time.perf_counter()
 
 print("Validation tags to SEO: 'META_TITLE, META_DESCRIPTION, H1 ")
-print("Settings: \n HOST: %s\n TIMEOUT: %s sec." % (HOST,TIMEOUT))
+print("Settings: \n HOST: %s\n TIMEOUT_RESPONSE_TIME: %s sec.\n TIMEOUT: %s sec." % (HOST,TIMEOUT_RESPONSE_TIME,TIMEOUT_LOAD_PAGE))
 
 
 class SeoMetaTagTest(unittest.TestCase):
 
+
 	@classmethod
 	def setUp(cls):
 		cls.data = list(csv.reader(the_page))
-		cls.browser = webdriver.Firefox()
-		cls.browser.set_page_load_timeout(TIMEOUT)
+
+		cls.firefoxProfile = webdriver.FirefoxProfile()
+		cls.firefoxProfile.set_preference("http.response.timeout", 10)
+		cls.driver = webdriver.Firefox(cls.firefoxProfile)
+		cls.driver.set_page_load_timeout(TIMEOUT_LOAD_PAGE)
+		#socket.setdefaulttimeout(TIMEOUT_RESPONSE_TIME)
+
+		
 
 #TODO - надо функцию, которая проверяет наличие всех элементов на стр. def: check_exists_by_xpath(self, xpath)
 
-	#def check_exists_by_xpath(self, XPATH):
-	#	for i in XPATH:
-	#		try:
-	#			self.browser.find_element_by_xpath(i)
-	#		except NoSuchElementException:
-	#			return False
-	#		return True
-
 	def check_exists_by_xpath(self, xpath):
 		try:
-			self.browser.find_element_by_xpath(xpath)
+			self.driver.find_element_by_xpath(xpath)
 		except NoSuchElementException:
 			return False
 		return True
@@ -62,21 +59,24 @@ class SeoMetaTagTest(unittest.TestCase):
 			print(("\n %s. test > " + url) % i)
 
 			try:
-				self.browser.get(url)
+				try:
+					#socket.setdefaulttimeout(TIMEOUT_RESPONSE_TIME)
+					self.driver.get(url)
+				except socket.timeout:
+					print("Response server timeout > %s sec.!!!" % TIMEOUT_RESPONSE_TIME)
+					continue
 			except TimeoutException:
-				print("Page load timeout > %s sec.!!!" % TIMEOUT)
+				print("Page load timeout > %s sec.!!!" % TIMEOUT_LOAD_PAGE)
 
-			self.check_exists_by_xpath("//meta[@name='description']")
-			self.check_exists_by_xpath("//h1")
-
-
+			#socket.setdefaulttimeout(None)
 			try:
-				self.assertEqual(title.strip(), self.browser.title.strip())
+				self.assertEqual(title.strip(), self.driver.title.strip()) #FIXME -  срабатывает исключение socket.timeout old.avtobazar.ua
 			except AssertionError:
-				print("%s META_TITLE - incorrect,\n  is - %s <!> must - %s " % (url, self.browser.title,title))
+				print("%s META_TITLE - incorrect,\n  is - %s <!> must - %s " % (url, self.driver.title,title))
+				#print("!!!!!!!!!!!!!Exception - %s" % e)
 
 			if self.check_exists_by_xpath("//meta[@name='description']"):
-				description = self.browser.find_element_by_xpath("//meta[@name='description']").get_attribute('content')
+				description = self.driver.find_element_by_xpath("//meta[@name='description']").get_attribute('content')
 				description = description.strip()
 				md = descr.strip()
 				try:
@@ -87,7 +87,7 @@ class SeoMetaTagTest(unittest.TestCase):
 				print("META_DESCRIPTION not found \n")
 
 			if self.check_exists_by_xpath("//h1"):
-				H1 = self.browser.find_element_by_tag_name("h1").text
+				H1 = self.driver.find_element_by_tag_name("h1").text
 				H1 = H1.strip()
 				mh = h1.strip()
 				try:
@@ -106,7 +106,7 @@ class SeoMetaTagTest(unittest.TestCase):
 
 	@classmethod
 	def tearDown(cls):
-		cls.browser.quit()
+		cls.driver.quit()
 
 if __name__ == '__main__':
 	unittest.main()
