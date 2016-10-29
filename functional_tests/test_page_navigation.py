@@ -1,25 +1,21 @@
-import unittest, re, time
-from selenium import webdriver
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.support.ui import Select
+import unittest, re
+from .search_list_page import SearchPageElements
 
-
-TIMEOUT_LOAD_PAGE = 120  # ограничение на время загрузки страницы, в сек
 # Вводимые данные для теста
-MAKE = 'BMW'
-MODEL = 'X5'
+MAKE = 'ВАЗ'
+MODEL = '2106'
 FALSE_MAKE = 'Toyota'
 FALSE_MODEL = 'Z3'
 
 PRICE_FROM = ' 10000'
 PRICE_TO = ' 11000'
 
-YEAR_FROM = '2000'
-YEAR_TO = '2016'
+YEAR_FROM = '1984'
+YEAR_TO = '1999'
 
 COUNTRY = 'Украина'
 CITY = 'Киев'
-PERIOD_FOR = 'месяц'
+PERIOD_FOR = '2 недели'
 
 MILEAGE_FROM = ' 10'
 MILEAGE_TO = ' 60'
@@ -31,98 +27,11 @@ COLOR = 'черный'
 TRANSMISSION = 'Автомат'
 ENGINE = 'Бензин'
 
-
-#TODO - надо обобщить использования шаблонов для regex
 #TODO - обработчик "selenium.common.exceptions.TimeoutException: Message: Timed out waiting for page load."
 
-class SearchTests(unittest.TestCase):
+class SearchTests(SearchPageElements):
 
-	@classmethod
-	def setUp(cls):
-		# create a new Firefox session
-		cls.driver = webdriver.Firefox()
-		#self.driver.implicitly_wait(5)
-		cls.driver.set_page_load_timeout(TIMEOUT_LOAD_PAGE)
-		#cls.driver.maximize_window()
-
-		# navigate to the application home page
-		try:
-			cls.driver.get("http://avtobazar.ua/poisk/avto/?country1=1911&show_only=only_used&per-page=10")
-		except TimeoutException:
-			print("Page load timeout > %s sec.!!!" % TIMEOUT_LOAD_PAGE)
-
-	def click_select_id(self, id_el, pattern):
-		element = self.driver.find_element_by_id(id_el)
-		select = Select(element)
-		for option in select.options:
-			value = option.text
-			if pattern.search(value):
-				option.click()
-				break
-		return select.first_selected_option.text
-
-	def run_the_filter(self):
-		# Нахожу кнопку Поиск1
-		xpath = '//*[@id="search_form"]/div[8]/div/button'
-		self.button_search = self.driver.find_element_by_xpath(xpath)
-		# Запускаю фильтр
-		self.button_search.submit()
-
-	def run_the_filter_bottom(self):
-		# Нахожу кнопку Поиск2
-		xpath = './/*[@id="search_form"]/div[22]/button'
-		self.button_search = self.driver.find_element_by_xpath(xpath)
-		# Запускаю фильтр
-		self.button_search.submit()
-
-	def output_ads_list(self):
-		# web elements list ads(dic)
-		xpath = '//*[@id="items-list"]/*/div/div[1]/div/a'
-		cars = self.driver.find_elements_by_xpath(xpath)
-
-		xpath = '//*[@id="items-list"]/*/*/div[4]/div[1]/a[3]'
-		city = self.driver.find_elements_by_xpath(xpath)
-
-		xpath = './/*[@id="items-list"]/*/*/div[3]/div[1]/p[1]/span'
-		price = self.driver.find_elements_by_xpath(xpath)
-
-		xpath = './/*[@id= "items-list"]/*/*/div[1]/ul/li[1]'
-		fuel_type = self.driver.find_elements_by_xpath(xpath)
-
-		xpath = './/*[@id= "items-list"]/*/*/div[1]/ul/li[2]'
-		milage = self.driver.find_elements_by_xpath(xpath)
-
-		xpath = './/*[@id= "items-list"]/*/*/div[1]/ul/li[3]'
-		transmission = self.driver.find_elements_by_xpath(xpath)
-
-		xpath = './/*[@id= "items-list"]/*/*/div[1]/ul/li[4]'
-		color_car = self.driver.find_elements_by_xpath(xpath)
-		# формирование словаря
-		keyword = ['cars', 'city', 'price', 'milage', 'transmission', 'fuel_type', 'color_car']
-		ads_list = list(zip(cars, city, price, milage, transmission, fuel_type, color_car))
-		# FIXME список отображает неправильно, если один из элементов  в объявлении отсутствует
-
-		ads = []
-		for ad in ads_list:
-			ad = [i.text for i in ad]
-			ads.append(dict(zip(keyword, ad)))
-
-		return ads
-
-	def input_range_value(self, id_from , id_to, value_from, value_to):
-		# TODO добавить проверку на наличие элементов и правильности ввода текста
-		val_from = self.driver.find_element_by_id(id_from)
-		val_from.send_keys( value_from)
-
-		val_to = self.driver.find_element_by_id(id_to)
-		val_to.send_keys(value_to)
-
-	def selection_checkbox(self, id):
-		# TODO добавить проверку на наличие элементов, видимость, enable  и правильности ввода текста
-		self.driver.find_element_by_id(id).click()
-
-
-	# @unittest.skip("debugging code")
+	#@unittest.skip("debugging code")
 	def test_input_price(self):
 		# Нахожу поля установки диапазона цены на авто
 		# Устанавливаю нижнюю и верхнюю цену
@@ -139,11 +48,31 @@ class SearchTests(unittest.TestCase):
 
 		print("выбор <диапазон цен> протестирован")
 
-	# @unittest.skip("debugging code")
+	#@unittest.skip("debugging code")
+	def test_pick_period_for(self):
+
+		pattern = re.compile(PERIOD_FOR)
+		field_selection_period_for = self.click_select_id('id_period', pattern)
+		self.assertIn(PERIOD_FOR, field_selection_period_for)
+
+		self.run_the_filter()
+
+		self.remove_top_plate()
+		self.crossings_between_pages('last()') # переход на последнюю стр
+
+		xpath = './/*[@id="items-list"]/div[last()]/*/div[4]/div[2]'  # выбираем в списке  последнее объявление
+		period_for = self.driver.find_element_by_xpath(xpath)
+		#print("1" + period_for.text)
+		period_for = period_for.text.split()[0]
+		#print("2" + period_for)
+		self.assertGreaterEqual(14, int(period_for)) #FIXME 2 недели ручками в 14 дней
+
+		print("выбор <периода просмотра объявлений '2 недели'> протестирован")
+
+	#@unittest.skip("debugging code")
 	def test_input_teh_data(self):
 		# Убираем верхнюю плашку
-		js = "var elem = document.getElementsByClassName('head-menu-wrap'); elem[0].parentNode.removeChild(elem[0]); "
-		self.driver.execute_script(js)
+		self.remove_top_plate()
 		# Вводим Пробег/КПП/Цвет/ТипТоплива/ОбъемДвигателя
 		self.input_range_value('id_mileage_from', 'id_mileage_to', MILEAGE_FROM, MILEAGE_TO)
 		self.run_the_filter()
@@ -153,7 +82,6 @@ class SearchTests(unittest.TestCase):
 		self.input_range_value('id_capacity_from', 'id_capacity_to', ENGINE_CAPACITY_FROM, ENGINE_CAPACITY_TO)
 		self.run_the_filter_bottom()
 
-		# TODO - заменить time.sleep на Wait, привязаться к урлу?
 		# time.sleep(10)
 		# Собираем результаты из списка объявлений в словарь
 		ads = self.output_ads_list()
@@ -178,7 +106,7 @@ class SearchTests(unittest.TestCase):
 
 		print("выбор <пробега + КПП + цвет + тип топлива + объем двигателя> протестирован")
 
-	# @unittest.skip("debugging code")
+	#@unittest.skip("debugging code")
 	def test_search_by_category(self):
 	# Нахожу поисковый блок "Поиск авто"
 	# Нахожу поле выбора Марки Авто
@@ -194,7 +122,7 @@ class SearchTests(unittest.TestCase):
 		self.assertIn(MAKE, field_selection_make)
 
 	# Выбираю "X5"
-		pattern = re.compile('.+' + MODEL)
+		pattern = re.compile('(.+)?' + MODEL)
 		field_selection_model = self.click_select_id('id_model1', pattern)
 	# Проверяю, что  не срабатывание на ошибочное слово слово
 		self.assertNotIn(FALSE_MODEL, field_selection_model)
@@ -210,7 +138,6 @@ class SearchTests(unittest.TestCase):
 		pattern = re.compile(YEAR_TO)
 		field_selection_year_to = self.click_select_id('id_year_to', pattern)
 		self.assertIn(YEAR_TO, field_selection_year_to)
-# TODO проверить что объявления загрузились для указанного периода
 
 	# Нахожу регион в которой продается автомобиль
 	# Выбираю страну "Украина"
@@ -218,7 +145,7 @@ class SearchTests(unittest.TestCase):
 		field_selection_country = self.click_select_id('id_country1', pattern)
 		self.assertIn(COUNTRY, field_selection_country)
 	# Выбираю город "Киев"
-		pattern = re.compile(r'Киев\b') #FIXME - работает нормально, но шаблон вроде кривой
+		pattern = re.compile(r'Киев\b')
 		field_selection_city = self.click_select_id('id_region1', pattern)
 		self.assertIn(CITY, field_selection_city)
 
@@ -227,11 +154,7 @@ class SearchTests(unittest.TestCase):
 	# Добавить город "Харьков"
 
 	# Нахожу возможно ограничить дату поступления объявления
-	# Выбираю объявления за последний месяц
-		pattern = re.compile(PERIOD_FOR)
-		field_selection_period_for = self.click_select_id('id_period', pattern)
-		self.assertIn(PERIOD_FOR, field_selection_period_for)
-#TODO проверить что объявления загрузились за "последний месяц" - перейти на последнюю страницу списка?
+
 	# Запускаю фильтр
 		self.run_the_filter()
 
@@ -245,7 +168,7 @@ class SearchTests(unittest.TestCase):
 			model = i.get('cars').split()[1]
 			self.assertIn(MODEL, model)
 
-			year = int(i.get('cars').split()[2])
+			year = int(i.get('cars').split()[-1])
 			self.assertGreaterEqual(year, int(YEAR_FROM))
 			self.assertGreaterEqual(int(YEAR_TO), year)
 
@@ -254,11 +177,6 @@ class SearchTests(unittest.TestCase):
 
 		print("выбор <марки + модели + период годов + город> протестирован")
 
-
-	@classmethod
-	def tearDown(cls):
-		# close the browser window
-		cls.driver.quit()
 
 if __name__ == '__main__':
 	unittest.main(verbosity=2)
