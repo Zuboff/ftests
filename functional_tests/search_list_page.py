@@ -3,7 +3,7 @@ from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.ui import Select
 
-TIMEOUT_LOAD_PAGE = 40  # ограничение на время загрузки страницы, в сек
+TIMEOUT_LOAD_PAGE = 80  # ограничение на время загрузки страницы, в сек
 URL = "http://avtobazar.ua/poisk/avto/?country1=1911&show_only=only_used&per-page=10"
 
 
@@ -123,3 +123,21 @@ class SearchPageElements(unittest.TestCase):
 		self.driver.find_element_by_xpath(xpath).click()
 		# TODO - надо обобщить переход по другим стр
 
+	def output_ad_teh_data(self):
+		ad_teh_data = {}
+		for i in range(1, 8): # FIXME - поставить проверку диапазонов
+			k_path = '//table[@class="table table-hover"]/tbody/tr[' + str(i) + ']/td[1]'
+			keys = self.driver.find_element_by_xpath(k_path).text
+			v_path = '//table[@class="table table-hover"]/tbody/tr[' + str(i) + ']/td[2]'
+			values = self.driver.find_element_by_xpath(v_path).text
+			ad_teh_data.update({keys: values})
+
+		return ad_teh_data
+
+	def output_ad_options(self):
+		xpath = '//div[@class="col-xs-12 features clearfix"]/child::*'
+		options = self.driver.find_elements_by_xpath(xpath)
+		options = [i.text.replace('\n',', ') for i in options]
+		ad_options = {'options': ', '.join(options)}
+
+		return ad_options
