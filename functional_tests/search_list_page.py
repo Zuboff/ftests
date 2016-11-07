@@ -3,7 +3,7 @@ from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.ui import Select
 
-TIMEOUT_LOAD_PAGE = 80  # ограничение на время загрузки страницы, в сек
+TIMEOUT_LOAD_PAGE = 50  # ограничение на время загрузки страницы, в сек
 URL = "http://avtobazar.ua/poisk/avto/?country1=1911&show_only=only_used&per-page=10"
 
 
@@ -48,44 +48,37 @@ class SearchPageElements(unittest.TestCase):
 
 	# Сбор данных в списке объявлений в словарь
 	def output_ads_list(self):
-		# web elements list ads(dic)
-		xpath = '//*[@id="items-list"]/*/div/div[1]/div/a'
-		cars = self.driver.find_elements_by_xpath(xpath)
+		driver = self.driver
 
-		xpath = '//*[@id="items-list"]/*/*/div[4]/div[1]/a[3]'
-		city = self.driver.find_elements_by_xpath(xpath)
-
-		xpath = './/*[@id="items-list"]/*/*/div[3]/div[1]/p[1]/span'
-		price = self.driver.find_elements_by_xpath(xpath)
-
-		xpath = './/*[@id= "items-list"]/*/*/div[1]/ul/li[1]'
-		fuel_type = self.driver.find_elements_by_xpath(xpath)
-
-		xpath = './/*[@id= "items-list"]/*/*/div[1]/ul/li[2]'
-		milage = self.driver.find_elements_by_xpath(xpath)
-
-		xpath = './/*[@id= "items-list"]/*/*/div[1]/ul/li[3]'
-		transmission = self.driver.find_elements_by_xpath(xpath)
-
-		xpath = './/*[@id= "items-list"]/*/*/div[1]/ul/li[4]'
-		color_car = self.driver.find_elements_by_xpath(xpath)
-
-		xpath = './/*[@id="items-list"]/*/*/div[4]/div[2]'
-		period_for = self.driver.find_elements_by_xpath(xpath)
-
-		# формирование словаря
-		keyword = ['cars', 'city', 'price', 'milage',
-						'transmission', 'fuel_type', 'color_car','period_for']
-		ads_list = list(zip(cars, city, price, milage,
-						transmission, fuel_type, color_car, period_for))
-		# FIXME список отображает неправильно, если один из элементов  в объявлении отсутствует
-
+		xpath = "//div[@class='row advert-item'] | //div[@class='row advert-item orange']"
+		ad_div = driver.find_elements_by_xpath(xpath)
 		ads = []
-		for ad in ads_list:
-			ad = [i.text for i in ad]
-			ads.append(dict(zip(keyword, ad)))
+		for i in ad_div:
 
+			adr = i.text.split('сохранить сравнить\n')
+			if adr[1].count('\n') == 1:
+				adr[1] = 'None\nNone\n' + adr[1]
+			elif adr[1].count('\n') == 2:
+				adr[1] = 'None\n' + adr[1]
+
+			adr[1] = 'сохранить сравнить\n' + adr[1]
+			adr = (adr[0] + adr[1]).split('\n')
+
+			cars, *tehdata, price, _, _, salon, firm, city, period_for = adr
+			ad = {'cars': ' '.join(cars.split()[:-1]), 'year': cars.split()[-1], 'tehdata': tehdata, 'price': price, 'salon': salon,
+			       'firm': firm, 'city': city.split('/')[-1].strip(), 'period_for': period_for}
+
+			ads.append(ad)
 		return ads
+
+	# Собираем линки на конечные страницы объявлений
+	def output_link_ads_list(self):
+		driver = self.driver
+
+		xpath = "//div[@class='row advert-item']/div[1]/div/a"
+		ad_div = driver.find_elements_by_xpath(xpath)
+		link_list = [i.get_attribute('href') for i in ad_div]
+		return link_list
 
 	# Установка диапазона велечин
 	def input_range_value(self, id_from, id_to, value_from, value_to):
@@ -123,17 +116,15 @@ class SearchPageElements(unittest.TestCase):
 		self.driver.find_element_by_xpath(xpath).click()
 		# TODO - надо обобщить переход по другим стр
 
+	# Сбор на конечном объявлении технических данных автомобиля
 	def output_ad_teh_data(self):
-		ad_teh_data = {}
-		for i in range(1, 8): # FIXME - поставить проверку диапазонов
-			k_path = '//table[@class="table table-hover"]/tbody/tr[' + str(i) + ']/td[1]'
-			keys = self.driver.find_element_by_xpath(k_path).text
-			v_path = '//table[@class="table table-hover"]/tbody/tr[' + str(i) + ']/td[2]'
-			values = self.driver.find_element_by_xpath(v_path).text
-			ad_teh_data.update({keys: values})
+		xpath = '//table[@class="table table-hover"]/tbody/tr/child::*'
+		li = [i.text for i in self.driver.find_elements_by_xpath(xpath)]
+		ad_teh_data = dict(zip(li[::2], li[1::2]))
 
 		return ad_teh_data
 
+	# Сбор на конечном объявлении опций автомобиля
 	def output_ad_options(self):
 		xpath = '//div[@class="col-xs-12 features clearfix"]/child::*'
 		options = self.driver.find_elements_by_xpath(xpath)

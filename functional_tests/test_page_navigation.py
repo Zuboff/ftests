@@ -2,7 +2,7 @@ import unittest, re
 from .search_list_page import SearchPageElements
 from selenium.common.exceptions import TimeoutException
 
-TIMEOUT_LOAD_PAGE = 40  # ограничение на время загрузки страницы, в сек
+TIMEOUT_LOAD_PAGE = 50  # ограничение на время загрузки страницы, в сек
 # Вводимые данные для теста
 MAKE = 'ВАЗ'
 MODEL = '2106'
@@ -41,19 +41,15 @@ class SearchTests(SearchPageElements):
 		self.selection_checkbox('id_drive_0')
 		# Выбрали авто с типом кузова "Седан"
 		self.selection_checkbox('id_categories_0')
-		# Выбрали авто на Газе
+		# Выбрали авто на "Газе"
 		self.selection_checkbox('id_engine_features_0')
 		# Выбрали авто с полной компектации
 		self.selection_checkbox('id_features_0')
 		# Открыть отдельное объявление и собрать информацию
-		N = 4
+		n = 5  # кол-во открываемых объявлений
 
-		link_list = []
-		for i in range(1,N): # FIXME - проверку диапазонов div[5] | div[4] иногда не бывает
-			xpath = '//*[@id="items-list"]/div[' + str(i) + ']/*/div[1]/div/a'
-			link_list.append(self.driver.find_element_by_xpath(xpath).get_attribute('href'))
-
-		for i in link_list:
+		link_list = self.output_link_ads_list()
+		for i in link_list[:n]:
 			self.driver.get(i)
 			self.assertIn('Седан', self.output_ad_teh_data()['Кузов'])
 			self.assertIn('газ', self.output_ad_teh_data()['Двигатель'])
@@ -73,15 +69,15 @@ class SearchTests(SearchPageElements):
 		# Проверяю попадает ли результат в заданный диапазон
 		for i in ads:
 			st = i.get('price').split()
-			price = int(st[0] + st[1])
+			price = int(''.join(st[:-1]))
 			self.assertGreaterEqual(price, int(PRICE_FROM))
 			self.assertGreaterEqual(int(PRICE_TO), price)
 
-		print("выбор <диапазон цен с %s $ по %s $> прошел тест" %(PRICE_FROM,PRICE_FROM))
+		print("выбор <диапазон цен с %s $ по %s $> прошел тест" % (PRICE_FROM, PRICE_TO))
 
 	#@unittest.skip("debugging code")
 	def test_pick_period_for(self):
-
+		# TODO - обработать ситуацию, когда на последней стр нет списка объявлений
 		pattern = re.compile(PERIOD_FOR)
 		field_selection_period_for = self.click_select_id('id_period', pattern)
 		self.assertIn(PERIOD_FOR, field_selection_period_for)
@@ -116,23 +112,25 @@ class SearchTests(SearchPageElements):
 		# time.sleep(10)
 		# Собираем результаты из списка объявлений в словарь
 		ads = self.output_ads_list()
-
 		for i in ads:
-			milage = int(i.get('milage').split()[0])
+			milage = i.get('tehdata')[1]
+			milage = int(milage.split()[0])
 			self.assertGreaterEqual(milage, int(MILEAGE_FROM))
 			self.assertGreaterEqual(int(MILEAGE_TO), milage)
 
-			capacity = float(i.get('fuel_type').split()[1])
+			capacity = i.get('tehdata')[0]
+			capacity = float(capacity.split()[1])
 			self.assertGreaterEqual(capacity, float(ENGINE_CAPACITY_FROM))
 			self.assertGreaterEqual(float(ENGINE_CAPACITY_TO), capacity)
 
-			color_car = i.get('color_car')
+			color_car = i.get('tehdata')[3]
 			self.assertIn(COLOR, color_car)
 
-			transmission = i.get('transmission')
+			transmission = i.get('tehdata')[2]
 			self.assertIn(TRANSMISSION, transmission)
 
-			engine = i.get('fuel_type').split()[0]
+			engine = i.get('tehdata')[0]
+			engine = ''.join(engine)
 			self.assertIn(ENGINE, engine)
 
 		print("выбор <пробег: c %s по %s + КПП:%s + цвет:%s + тип_топлива:%s + "
@@ -193,7 +191,6 @@ class SearchTests(SearchPageElements):
 
 	# Нахожу список объявлений удовлетворяющих всем требованиям фильтра
 		ads = self.output_ads_list()
-
 		for i in ads:
 			make = i.get('cars').split()[0]
 			self.assertIn(MAKE, make)
@@ -201,7 +198,7 @@ class SearchTests(SearchPageElements):
 			model = i.get('cars').split()[1]
 			self.assertIn(MODEL, model)
 
-			year = int(i.get('cars').split()[-1])
+			year = int(i.get('year'))
 			self.assertGreaterEqual(year, int(YEAR_FROM))
 			self.assertGreaterEqual(int(YEAR_TO), year)
 
