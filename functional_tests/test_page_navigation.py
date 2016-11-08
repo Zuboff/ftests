@@ -2,7 +2,6 @@ import unittest, re
 from .search_list_page import SearchPageElements
 from selenium.common.exceptions import TimeoutException
 
-TIMEOUT_LOAD_PAGE = 50  # ограничение на время загрузки страницы, в сек
 # Вводимые данные для теста
 MAKE = 'ВАЗ'
 MODEL = '2106'
@@ -33,6 +32,58 @@ ENGINE = 'Бензин'
 
 
 class SearchTests(SearchPageElements):
+
+	def select_show_only(self, id, text):
+		# Хелпер по выбору  параметров и запуска из списка "Показвать только"
+		pattern = re.compile('Показывать только')
+		self.click_select_id(id, pattern)
+		self.run_the_filter_bottom()
+
+		ads = self.output_ads_list()
+		for i in ads:
+			data = ' '.join(i.get('tehdata'))
+			self.assertIn(text, data)
+		print("выбор <показывать только '%s' авто> прошел тест" % text)
+
+	#@unittest.skip("debugging code")
+	def test_select_rent_cars(self):
+		# Проверка выдачи только арендных авто
+		self.select_show_only('id_rent', 'аренда')
+
+	#@unittest.skip("debugging code")
+	def test_select_credit_cars(self):
+		# Проверка выдачи только кредитных авто
+		self.select_show_only('id_in_credit', 'кредитный')
+
+	#@unittest.skip("debugging code")
+	def test_select_dtp_cars(self):
+		# Проверка выдачи только авто после ДТП
+		self.select_show_only('id_after_dtp', 'после ДТП')
+
+	#@unittest.skip("debugging code")
+	def test_not_cleared_cars(self):
+		# Проверка выдачи только не растаможенных авто
+		self.select_show_only('id_no_customs', 'не растаможен')
+
+	#@unittest.skip("debugging code")
+	def test_car_exchange(self):
+		# Проверка выдачи только авто на обмен
+		self.select_show_only('id_exchange', 'обмен')
+
+	#@unittest.skip("debugging code")
+	def test_diler_cars(self):
+		# Проверка выдачи только авто дилеров
+		self.driver.implicitly_wait(10) # TODO - Explicit Waits надо установить
+		pattern = re.compile('Показывать только')
+		self.click_select_id('id_autosalon_own', pattern)
+		self.run_the_filter_bottom()
+
+		ads = self.output_ads_list()
+		for i in ads:
+			data = i.get('firm')
+			self.assertNotIn('None', data)
+		print("выбор <показывать только авто автодилеров > прошел тест")
+
 
 	#@unittest.skip("debugging code")
 	def test_end_page_ads(self):

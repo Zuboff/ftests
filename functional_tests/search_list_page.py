@@ -3,7 +3,7 @@ from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.ui import Select
 
-TIMEOUT_LOAD_PAGE = 50  # ограничение на время загрузки страницы, в сек
+TIMEOUT_LOAD_PAGE = 20  # ограничение на время загрузки страницы, в сек
 URL = "http://avtobazar.ua/poisk/avto/?country1=1911&show_only=only_used&per-page=10"
 
 
