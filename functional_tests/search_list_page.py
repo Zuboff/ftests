@@ -3,9 +3,9 @@ from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.ui import Select
 
-TIMEOUT_LOAD_PAGE = 20  # ограничение на время загрузки страницы, в сек
+TIMEOUT_LOAD_PAGE = 120  # ограничение на время загрузки страницы, в сек
 URL = "http://avtobazar.ua/poisk/avto/?country1=1911&show_only=only_used&per-page=10"
-
+EXCHANGE_RATES = 1.12
 
 class SearchPageElements(unittest.TestCase):
 
@@ -47,28 +47,33 @@ class SearchPageElements(unittest.TestCase):
 		self.button_search.submit()
 
 	# Сбор данных в списке объявлений в словарь
-	def output_ads_list(self):
+	def output_ads_list(self, *type_ads):
 		driver = self.driver
+		_map = {'ordinary': '//div[@class="row advert-item"]', 'orange': '//div[@class="row advert-item orange"]'}
 
-		xpath = "//div[@class='row advert-item'] | //div[@class='row advert-item orange']"
-		ad_div = driver.find_elements_by_xpath(xpath)
 		ads = []
-		for i in ad_div:
+		for key in type_ads:
+			xpath = _map[key]
+			ad_div = driver.find_elements_by_xpath(xpath)
+			for i in ad_div:
 
-			adr = i.text.split('сохранить сравнить\n')
-			if adr[1].count('\n') == 1:
-				adr[1] = 'None\nNone\n' + adr[1]
-			elif adr[1].count('\n') == 2:
-				adr[1] = 'None\n' + adr[1]
+				adr = i.text.split('сохранить сравнить\n')
+				if adr[1].count('\n') == 1:
+					adr[1] = 'None\nNone\n' + adr[1]
+				elif adr[1].count('\n') == 2:
+					adr[1] = 'None\n' + adr[1]
 
-			adr[1] = 'сохранить сравнить\n' + adr[1]
-			adr = (adr[0] + adr[1]).split('\n')
+				adr[1] = 'сохранить сравнить\n' + adr[1]
+				adr = (adr[0] + adr[1]).split('\n')
 
-			cars, *tehdata, price, _, _, salon, firm, city, period_for = adr
-			ad = {'cars': ' '.join(cars.split()[:-1]), 'year': cars.split()[-1], 'tehdata': tehdata, 'price': price, 'salon': salon,
-			       'firm': firm, 'city': city.split('/')[-1].strip(), 'period_for': period_for}
+				cars, *tehdata, price, _, _, salon, firm, city, period_for = adr
+				ad = {'cars': ' '.join(cars.split()[:-1]), 'year': cars.split()[-1], 'tehdata': tehdata,
+						'price_$': int(''.join(price.split()[:-1])),
+						'currency': price.split()[-1],
+						'salon': salon, 'firm': firm,
+						'city': city.split('/')[-1].strip(), 'period_for': period_for}
 
-			ads.append(ad)
+				ads.append(ad)
 		return ads
 
 	# Собираем линки на конечные страницы объявлений
@@ -110,6 +115,15 @@ class SearchPageElements(unittest.TestCase):
 		js = "var elem = document.getElementsByClassName('head-menu-wrap'); elem[0].parentNode.removeChild(elem[0]); "
 		self.driver.execute_script(js)
 
+	# Сортировать объявления
+	def click_sorting_ads(self, key):
+		_map = {'price': './/a[@data-sort="price"]', 'year': './/a[@data-sort="year"]', 'date': './/a[@data-sort="year"]'}
+		element = self.driver.find_element_by_xpath(_map[key])
+		element.click()
+		xpath = ".//a[@data-sort='%s']/i" % key
+		attr = self.driver.find_element_by_xpath(xpath).get_attribute('class')
+		return (attr)
+
 	# Переход по пагинатору
 	def crossings_between_pages(self, n_page):
 		xpath = './/*[@id="pagination"]/div/ul/li[' + n_page + ']/a'  # выбираем в пагинаторе последниюю стр.
@@ -132,3 +146,16 @@ class SearchPageElements(unittest.TestCase):
 		ad_options = {'options': ', '.join(options)}
 
 		return ad_options
+
+	# Привести цены евро в доллары
+	def currency_conversion(self, ads):
+		ls_currency = [i.get('currency') for i in ads]
+		ls_price = [i.get('price_$', 'currency') for i in ads]
+		e = []
+		for i, val in enumerate(ls_currency):
+			if val == '€':
+				e.append(i)
+		for i in e:
+			ls_price[i] = int(ls_price[i] * EXCHANGE_RATES)
+
+		return ls_price

@@ -33,17 +33,43 @@ ENGINE = 'Бензин'
 
 class SearchTests(SearchPageElements):
 
+	# TODO Проверка сортировки цены
+	#@unittest.skip("debugging code")
+	def test_sorting_ads(self):
+		# Кликаем на сортировку по цене
+		sorting_direction = self.click_sorting_ads('price')
+		ads = self.output_ads_list('ordinary')
+		ls_price = self.currency_conversion(ads)
+		if sorting_direction == 'ab ab-arrow-up2':
+			self.assertEqual(sorted(ls_price), ls_price)
+		else:
+			print("Сортировка по возрастанию цены не включается, включается '%s'" % sorting_direction)
+
+		# Кликаем еще раз на сортировку по цене
+		sorting_direction = self.click_sorting_ads('price')
+		ads = self.output_ads_list('ordinary')
+		ls_price = self.currency_conversion(ads)
+		if sorting_direction == 'ab ab-arrow-down2':
+			self.assertEqual(sorted(ls_price, reverse=True), ls_price)
+		else:
+			print("Сортировка по убыванию цены не включается, включается '%s'" % sorting_direction)
+
+		print("сортировка списка объявлений по возрастанию цены и убыванию, тест прошла ")
+
+
+
 	def select_show_only(self, id, text):
 		# Хелпер по выбору  параметров и запуска из списка "Показвать только"
 		pattern = re.compile('Показывать только')
 		self.click_select_id(id, pattern)
 		self.run_the_filter_bottom()
 
-		ads = self.output_ads_list()
+		ads = self.output_ads_list('ordinary', 'orange')
 		for i in ads:
 			data = ' '.join(i.get('tehdata'))
 			self.assertIn(text, data)
 		print("выбор <показывать только '%s' авто> прошел тест" % text)
+
 
 	#@unittest.skip("debugging code")
 	def test_select_rent_cars(self):
@@ -78,7 +104,7 @@ class SearchTests(SearchPageElements):
 		self.click_select_id('id_autosalon_own', pattern)
 		self.run_the_filter_bottom()
 
-		ads = self.output_ads_list()
+		ads = self.output_ads_list('ordinary', 'orange')
 		for i in ads:
 			data = i.get('firm')
 			self.assertNotIn('None', data)
@@ -116,11 +142,10 @@ class SearchTests(SearchPageElements):
 		self.input_range_value('id_price_from', 'id_price_to', PRICE_FROM, PRICE_TO)
 		# Запускаю фильтр и собираю вывод
 		self.run_the_filter()
-		ads = self.output_ads_list()
+		ads = self.output_ads_list('ordinary', 'orange')
 		# Проверяю попадает ли результат в заданный диапазон
 		for i in ads:
-			st = i.get('price').split()
-			price = int(''.join(st[:-1]))
+			price = i.get('price_$')
 			self.assertGreaterEqual(price, int(PRICE_FROM))
 			self.assertGreaterEqual(int(PRICE_TO), price)
 
@@ -162,7 +187,7 @@ class SearchTests(SearchPageElements):
 
 		# time.sleep(10)
 		# Собираем результаты из списка объявлений в словарь
-		ads = self.output_ads_list()
+		ads = self.output_ads_list('ordinary', 'orange')
 		for i in ads:
 			milage = i.get('tehdata')[1]
 			milage = int(milage.split()[0])
@@ -241,7 +266,7 @@ class SearchTests(SearchPageElements):
 		self.run_the_filter()
 
 	# Нахожу список объявлений удовлетворяющих всем требованиям фильтра
-		ads = self.output_ads_list()
+		ads = self.output_ads_list('ordinary', 'orange')
 		for i in ads:
 			make = i.get('cars').split()[0]
 			self.assertIn(MAKE, make)
