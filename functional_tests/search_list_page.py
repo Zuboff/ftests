@@ -16,6 +16,7 @@ class SearchPageElements(unittest.TestCase):
 		# TODO - организовать выбор различных браузеров
 		cls.driver = webdriver.Firefox()
 		cls.driver.set_page_load_timeout(TIMEOUT_LOAD_PAGE)
+		cls.driver.maximize_window()
 
 		# navigate to the application home page
 		try:
@@ -67,7 +68,8 @@ class SearchPageElements(unittest.TestCase):
 				adr = (adr[0] + adr[1]).split('\n')
 
 				cars, *tehdata, price, _, _, salon, firm, city, period_for = adr
-				ad = {'cars': ' '.join(cars.split()[:-1]), 'year': cars.split()[-1], 'tehdata': tehdata,
+				ad = {'cars': ' '.join(cars.split()[:-1]), 'tehdata': tehdata,
+						'year':  self.displaymatch(cars.split()[-1]),
 						'price_$': int(''.join(price.split()[:-1])),
 						'currency': price.split()[-1],
 						'salon': salon, 'firm': firm,
@@ -159,3 +161,19 @@ class SearchPageElements(unittest.TestCase):
 			ls_price[i] = int(ls_price[i] * EXCHANGE_RATES)
 
 		return ls_price
+
+	# Хелпер, для обработки совпадений для regex
+	def displaymatch(self, text):
+		valid_year = re.compile(r"([2][0][0-1]\d|[1][9]\d\d)")  # Находим только "правильные года"
+		year = valid_year.match(text)
+		if year is None:
+			return None
+		return(int(year.group()))
+
+	# Для работы с выпадающим меню, который определяет кол-во объявлений на стр.
+	def click_dropdown_menu(self, count):
+		self.driver.find_element_by_id('countValue').click()
+		xpath = './/*[@class="dropdown-menu results-count text-left"]/li/a[@data-count="%s"]' % count
+		element = self.driver.find_element_by_xpath(xpath)
+		element.click()
+

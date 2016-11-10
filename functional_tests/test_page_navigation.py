@@ -28,14 +28,53 @@ COLOR = 'черный'
 TRANSMISSION = 'Автомат'
 ENGINE = 'Бензин'
 
-#TODO - обработчик "selenium.common.exceptions.TimeoutException: Message: Timed out waiting for page load."
+NUMBER_ON_PAGE = "100"
 
+# TODO - обработчик "selenium.common.exceptions.TimeoutException: Message: Timed out waiting for page load."
+# TODO - сортировка по времени размещения оъявлений - ?
+# TODO - показывать только новые объявления
+# TODO - проверка работы "Умных фильтров" - ?
+# TODO - проверить диапазоны для мощности л.с.
+# TODO проверка добавления дополнительной марки/модели
+# TODO проверка работы плашки с указателями фильтров
 
 class SearchTests(SearchPageElements):
 
-	# TODO Проверка сортировки цены
+	def test_changes_number_ads_page(self):
+		# Тестируем выдачу кол-ва объвлений на стр. согласно выбора
+		self.click_dropdown_menu(NUMBER_ON_PAGE) # надо устанавливать max размер окна, иначе click не доступен
+		count = self.output_link_ads_list()
+		self.assertEqual(len(count), int(NUMBER_ON_PAGE))
+		print("Изменения кол-ва объявлений  тест прошел, объявлений на стр.: '%s'" % NUMBER_ON_PAGE)
+
+
 	#@unittest.skip("debugging code")
-	def test_sorting_ads(self):
+	def test_sorting_year_ads(self):
+		# Тестируем сортировку по году
+		sorting_direction = self.click_sorting_ads('year')
+		ads = self.output_ads_list('ordinary')
+		ls_year = [i.get('year') for i in ads if i.get('year') is not None]
+
+		if sorting_direction == 'ab ab-arrow-up2':
+			self.assertEqual(sorted(ls_year), ls_year)
+		else:
+			print("Сортировка по возрастанию года не включается, включается '%s'" % sorting_direction)
+
+		sorting_direction = self.click_sorting_ads('year')
+		ads = self.output_ads_list('ordinary')
+		ls_year = [i.get('year') for i in ads if i.get('year') is not None]
+
+		if sorting_direction == 'ab ab-arrow-down2':
+			self.assertEqual(sorted(ls_year, reverse=True), ls_year)
+		else:
+			print("Сортировка по убыванию года не включается, включается '%s'" % sorting_direction)
+
+		print("сортировка списка объявлений по возрастанию и убыванию года, тест прошла ")
+
+
+	#@unittest.skip("debugging code")
+	def test_sorting_price_ads(self):
+		# Тестируем  сортировку по цене
 		# Кликаем на сортировку по цене
 		sorting_direction = self.click_sorting_ads('price')
 		ads = self.output_ads_list('ordinary')
@@ -228,7 +267,7 @@ class SearchTests(SearchPageElements):
 	# Проверяю, что срабатывание на нужное слово
 		self.assertIn(MAKE, field_selection_make)
 
-	# Выбираю "X5"
+	# Выбираю MODEL
 		pattern = re.compile('(.+)?' + MODEL)
 		field_selection_model = self.click_select_id('id_model1', pattern)
 	# Проверяю, что  не срабатывание на ошибочное слово слово
@@ -236,17 +275,15 @@ class SearchTests(SearchPageElements):
 	# Проверяю, что срабатывание на нужное слово
 		self.assertIn(MODEL, field_selection_model)
 
-	# Нахожу поля установки диапазона выпуска авто
-	# Устанавливаю нижнюю границу 2000 год
+	# Устанавливаю нижнюю границу YEAR_FROM
 		pattern = re.compile(YEAR_FROM)
 		field_selection_year_from = self.click_select_id('id_year_from', pattern)
 		self.assertIn(YEAR_FROM, field_selection_year_from)
-	# Устанавливаю верхнюю границу 2016 год
+	# Устанавливаю верхнюю границу YEAR_TO
 		pattern = re.compile(YEAR_TO)
 		field_selection_year_to = self.click_select_id('id_year_to', pattern)
 		self.assertIn(YEAR_TO, field_selection_year_to)
 
-	# Нахожу регион в которой продается автомобиль
 	# Выбираю страну "Украина"
 		pattern = re.compile(COUNTRY)
 		field_selection_country = self.click_select_id('id_country1', pattern)
@@ -256,11 +293,7 @@ class SearchTests(SearchPageElements):
 		field_selection_city = self.click_select_id('id_region1', pattern)
 		self.assertIn(CITY, field_selection_city)
 
-	# Добавить дополнительный регион
-	# Добавить страну "Украина"
-	# Добавить город "Харьков"
-
-	# Нахожу возможно ограничить дату поступления объявления
+	# TODO проверка добавления дополнительного региона
 
 	# Запускаю фильтр
 		self.run_the_filter()
